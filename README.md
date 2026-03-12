@@ -81,11 +81,6 @@ npm start
 
 ---
 
-## 📸 Screenshots
-
-*(Screenshots can be added here once hosted or locally captured)*
-
----
 
 ## 📝 License
 This project is open-source and available under the [MIT License](LICENSE).
