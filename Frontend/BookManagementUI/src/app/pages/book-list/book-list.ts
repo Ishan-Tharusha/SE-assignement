@@ -1,0 +1,615 @@
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { BookService } from '../../services/book.service';
+import { Book } from '../../models/book.model';
+import { LucideAngularModule } from 'lucide-angular';
+
+@Component({
+  selector: 'app-book-list',
+  standalone: true,
+  imports: [CommonModule, RouterModule, LucideAngularModule],
+  template: `
+    <div class="page-wrapper">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <h2 class="page-title">Manage Records</h2>
+          <p class="page-subtitle">View, search, and manage all books in the library.</p>
+        </div>
+        <button routerLink="/books/add" class="btn-primary">
+          <span class="btn-icon"><lucide-icon name="plus" style="width:16px;height:16px;display:block;"></lucide-icon></span>
+          Add New Record
+        </button>
+      </div>
+
+      <!-- Error Alert -->
+      @if (errorMessage) {
+        <div class="alert-error">
+          <lucide-icon name="alert-circle" style="width:18px;height:18px;flex-shrink:0;"></lucide-icon>
+          <span>{{ errorMessage }}</span>
+        </div>
+      }
+
+      <!-- Table Card -->
+      <div class="table-card">
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <div class="search-wrapper">
+            <span class="search-icon-wrap"><lucide-icon name="search" style="width:15px;height:15px;display:block;"></lucide-icon></span>
+            <input type="text" placeholder="Search by title, author or ISBN..."
+                   class="search-input" (input)="onSearch($event)" />
+          </div>
+          <div class="toolbar-right">
+            <span class="record-count">Showing {{ filteredBooks.length }} records</span>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        @if (isLoading) {
+          <div class="loading-state">
+            <lucide-icon name="loader-2" class="spin" style="width:28px;height:28px;color:#2563EB;"></lucide-icon>
+            <p>Loading records...</p>
+          </div>
+        }
+
+        <!-- Table -->
+        @if (!isLoading && filteredBooks.length > 0) {
+          <div class="table-outer">
+            <table class="books-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Author</th>
+                  <th>ISBN</th>
+                  <th>Published Date</th>
+                  <th>Category</th>
+                  <th class="th-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (book of filteredBooks; track book.id) {
+                  <tr class="table-row">
+                    <td class="td-title">
+                      <span class="book-title">{{ book.title }}</span>
+                      <span class="book-author-mobile">{{ book.author }}</span>
+                    </td>
+                    <td class="td-author">{{ book.author }}</td>
+                    <td class="td-isbn">{{ book.isbn }}</td>
+                    <td class="td-date">{{ book.publicationDate | date:'mediumDate' }}</td>
+                    <td class="td-category">
+                      @if (book.category) {
+                        <span class="category-tag">{{ book.category }}</span>
+                      } @else {
+                        <span class="no-category">—</span>
+                      }
+                    </td>
+
+                    <td class="td-actions">
+                      @if (pendingDeleteId === book.id) {
+                        <!-- Inline Confirm State -->
+                        <div class="confirm-row">
+                          <span class="confirm-text">Delete this record?</span>
+                          <button (click)="confirmDelete(book.id)" class="action-btn action-confirm-yes">Yes</button>
+                          <button (click)="cancelDelete()" class="action-btn action-confirm-no">No</button>
+                        </div>
+                      } @else {
+                        <div class="action-buttons">
+                          <a [routerLink]="['/books/edit', book.id]" class="action-btn action-edit" title="Edit">
+                            <lucide-icon name="pencil" style="width:15px;height:15px;"></lucide-icon>
+                          </a>
+                          <button (click)="requestDelete(book.id)" class="action-btn action-delete" title="Delete">
+                            <lucide-icon name="trash-2" style="width:15px;height:15px;"></lucide-icon>
+                          </button>
+                        </div>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination-bar">
+            <span>Page 1 of 1</span>
+            <div class="pagination-btns">
+              <button class="page-btn" disabled>Previous</button>
+              <button class="page-btn">Next</button>
+            </div>
+          </div>
+        }
+
+        <!-- Empty State -->
+        @if (!isLoading && filteredBooks.length === 0 && !errorMessage) {
+          <div class="empty-state">
+            <div class="empty-icon-wrap">
+              <lucide-icon name="database" style="width:32px;height:32px;color:#9CA3AF;"></lucide-icon>
+            </div>
+            <h3 class="empty-title">No records found</h3>
+            <p class="empty-desc">
+              Get started by adding a new book, or adjust your search filters.
+            </p>
+            <button routerLink="/books/add" class="btn-primary" style="margin-top:20px;">
+              <lucide-icon name="plus" style="width:15px;height:15px;"></lucide-icon>
+              Add Record
+            </button>
+          </div>
+        }
+
+      </div>
+    </div>
+  `,
+  styles: [`
+    :host { display: block; }
+
+    /* Page layout */
+    .page-wrapper { display: flex; flex-direction: column; gap: 24px; }
+
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      color: #111827;
+      letter-spacing: -0.4px;
+    }
+
+    .page-subtitle {
+      margin: 4px 0 0;
+      font-size: 14px;
+      color: #6B7280;
+    }
+
+    /* Buttons */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: #2563EB;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-primary:hover { background: #1D4ED8; }
+
+    .btn-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 0;
+      flex-shrink: 0;
+    }
+
+    /* Alerts */
+    .alert-error {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #FEF2F2;
+      border-left: 4px solid #EF4444;
+      color: #991B1B;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    /* Table Card */
+    .table-card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #E5E7EB;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      overflow: hidden;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      border-bottom: 1px solid #F3F4F6;
+      background: #FAFAFA;
+      flex-wrap: wrap;
+    }
+
+    .search-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      max-width: 320px;
+      min-width: 180px;
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      padding: 0 12px 0 10px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .search-wrapper:focus-within {
+      border-color: #2563EB;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+    }
+
+    .search-icon-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #9CA3AF;
+      pointer-events: none;
+      line-height: 0;
+    }
+
+    .search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 9px 0;
+      font-size: 13px;
+      color: #374151;
+      outline: none;
+      min-width: 0;
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .record-count {
+      font-size: 13px;
+      color: #6B7280;
+    }
+
+    /* Loading State */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 56px 24px;
+      gap: 12px;
+      color: #9CA3AF;
+      font-size: 14px;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .spin { animation: spin 1s linear infinite; }
+
+    /* Table */
+    .table-outer { overflow-x: auto; }
+
+    .books-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .books-table thead tr {
+      background: #F9FAFB;
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    .books-table th {
+      padding: 10px 18px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #6B7280;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .books-table th.th-right { text-align: right; min-width: 100px; }
+
+    .books-table td {
+      padding: 13px 18px;
+      vertical-align: middle;
+      border-bottom: 1px solid #F3F4F6;
+      color: #374151;
+    }
+
+    .table-row:last-child td { border-bottom: none; }
+    .table-row:hover { background: #FAFAFA; }
+
+    .td-title { font-weight: 500; color: #111827; }
+
+    .book-title { display: block; }
+
+    .book-author-mobile {
+      display: none;
+      font-size: 12px;
+      color: #9CA3AF;
+      margin-top: 2px;
+    }
+
+    @media (max-width: 768px) {
+      .td-author, .td-isbn { display: none; }
+      .book-author-mobile { display: block; }
+    }
+
+    .td-isbn {
+      font-family: monospace;
+      font-size: 12px;
+      color: #6B7280;
+    }
+
+    .td-date { color: #6B7280; white-space: nowrap; }
+
+    .td-category { white-space: nowrap; }
+
+    .category-tag {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+      background: #EEF2FF;
+      color: #4F46E5;
+    }
+
+    .no-category {
+      color: #D1D5DB;
+      font-size: 14px;
+    }
+
+    /* Status Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .badge-active  { background: #DCFCE7; color: #15803D; }
+    .badge-pending { background: #FEF3C7; color: #92400E; }
+    .badge-archived { background: #F3F4F6; color: #4B5563; }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .badge-dot-active  { background: #22C55E; }
+    .badge-dot-pending { background: #F59E0B; }
+    .badge-dot-archived { background: #9CA3AF; }
+
+    /* Actions */
+    .td-actions { text-align: right; min-width: 100px; }
+
+    .action-buttons {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .confirm-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      animation: fadeIn 0.15s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .confirm-text {
+      font-size: 12px;
+      color: #EF4444;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: transparent;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+
+    .action-edit   { color: #2563EB; }
+    .action-edit:hover   { background: #EFF6FF; }
+    .action-delete { color: #EF4444; }
+    .action-delete:hover { background: #FEF2F2; }
+
+    .action-confirm-yes {
+      background: #EF4444;
+      color: #fff;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      width: auto;
+      height: auto;
+      transition: background 0.15s;
+    }
+    .action-confirm-yes:hover { background: #DC2626; }
+
+    .action-confirm-no {
+      background: #F3F4F6;
+      color: #374151;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      width: auto;
+      height: auto;
+      transition: background 0.15s;
+    }
+    .action-confirm-no:hover { background: #E5E7EB; }
+
+    /* Pagination */
+    .pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      border-top: 1px solid #F3F4F6;
+      background: #FAFAFA;
+      font-size: 13px;
+      color: #6B7280;
+    }
+
+    .pagination-btns { display: flex; gap: 6px; }
+
+    .page-btn {
+      padding: 5px 14px;
+      border: 1px solid #E5E7EB;
+      border-radius: 6px;
+      background: #fff;
+      font-size: 13px;
+      color: #374151;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .page-btn:hover { background: #F3F4F6; }
+    .page-btn:disabled { color: #9CA3AF; cursor: not-allowed; background: #F9FAFB; }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 64px 24px;
+      text-align: center;
+    }
+
+    .empty-icon-wrap {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #F9FAFB;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .empty-title {
+      margin: 0 0 8px;
+      font-size: 17px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .empty-desc {
+      margin: 0;
+      font-size: 14px;
+      color: #6B7280;
+      max-width: 340px;
+    }
+  `]
+})
+export class BookListComponent implements OnInit {
+  books: Book[] = [];
+  filteredBooks: Book[] = [];
+  searchTerm = '';
+  isLoading = false;
+  errorMessage = '';
+  pendingDeleteId: string | null = null;
+
+  bookService = inject(BookService);
+  cdr = inject(ChangeDetectorRef);
+
+  ngOnInit(): void {
+    this.loadBooks();
+  }
+
+  loadBooks(): void {
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    this.bookService.getBooks().subscribe({
+      next: (data) => {
+        this.books = data;
+        this.filteredBooks = data;
+        this.isLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error fetching books:', err);
+        this.errorMessage = 'Failed to load books. Please try again later.';
+        this.isLoading = false;
+      }
+    });
+  }
+
+  onSearch(event: Event): void {
+    const term = (event.target as HTMLInputElement).value.toLowerCase().trim();
+    this.searchTerm = term;
+
+    if (!term) {
+      this.filteredBooks = [...this.books];
+    } else {
+      this.filteredBooks = this.books.filter(b =>
+        b.title.toLowerCase().includes(term) ||
+        b.author.toLowerCase().includes(term) ||
+        b.isbn.includes(term)
+      );
+    }
+  }
+
+  requestDelete(id: string): void {
+    this.pendingDeleteId = id;
+  }
+
+  cancelDelete(): void {
+    this.pendingDeleteId = null;
+  }
+
+  confirmDelete(id: string): void {
+    this.pendingDeleteId = null;
+    this.bookService.deleteBook(id).subscribe({
+      next: () => this.loadBooks(),
+      error: (err) => {
+        console.error('Error deleting book', err);
+        this.errorMessage = 'Failed to delete the record. It may have already been removed.';
+      }
+    });
+  }
+}

@@ -1,0 +1,123 @@
+<div class="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+        {{ isEditMode ? 'Edit Record' : 'Add New Record' }}
+      </h2>
+      <p class="text-[var(--text-secondary)] mt-1">
+        {{ isEditMode ? 'Update the details for this book in the library.' : 'Enter the details of the new book below to add it to the library database.' }}
+      </p>
+    </div>
+    
+    <button routerLink="/books" class="dashboard-btn-secondary">
+      <lucide-icon name="arrow-left" class="w-4 h-4"></lucide-icon>
+      Back to Records
+    </button>
+  </div>
+
+  @if (errorMessage) {
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex items-start gap-3">
+      <lucide-icon name="alert-circle" class="w-5 h-5 text-red-500 mt-0.5"></lucide-icon>
+      <div class="text-sm text-red-700">{{ errorMessage }}</div>
+    </div>
+  }
+
+  <!-- Form Card -->
+  <div class="dashboard-card relative overflow-hidden">
+    
+    @if (isLoading) {
+      <div class="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-gray-400 gap-3">
+        <lucide-icon name="loader-2" class="w-8 h-8 animate-spin text-[var(--primary)]"></lucide-icon>
+        <p class="text-sm font-medium">Loading details...</p>
+      </div>
+    }
+
+    <form [formGroup]="bookForm" (ngSubmit)="onSubmit()" class="space-y-6">
+      
+      <!-- General Information Section -->
+      <div>
+        <h3 class="text-lg font-semibold text-[var(--text-primary)] border-b border-[var(--border)] pb-2 mb-4">General Information</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <div class="form-group space-y-1">
+            <label for="title" class="dashboard-label">Book Title <span class="text-red-500">*</span></label>
+            <input type="text" id="title" formControlName="title" 
+                   class="dashboard-input" 
+                   [ngClass]="{'border-red-300 focus:ring-red-500': bookForm.get('title')?.invalid && bookForm.get('title')?.touched}"
+                   placeholder="e.g. The Great Gatsby">
+            @if (bookForm.get('title')?.invalid && bookForm.get('title')?.touched) {
+              <p class="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <lucide-icon name="info" class="w-3 h-3"></lucide-icon> Title is required (max 200 chars).
+              </p>
+            }
+          </div>
+
+          <div class="form-group space-y-1">
+            <label for="author" class="dashboard-label">Author Name <span class="text-red-500">*</span></label>
+            <input type="text" id="author" formControlName="author" 
+                   class="dashboard-input"
+                   [ngClass]="{'border-red-300 focus:ring-red-500': bookForm.get('author')?.invalid && bookForm.get('author')?.touched}"
+                   placeholder="e.g. F. Scott Fitzgerald">
+            @if (bookForm.get('author')?.invalid && bookForm.get('author')?.touched) {
+              <p class="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <lucide-icon name="info" class="w-3 h-3"></lucide-icon> Author is required (max 100 chars).
+              </p>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Publication Details Section -->
+      <div>
+        <h3 class="text-lg font-semibold text-[var(--text-primary)] border-b border-[var(--border)] pb-2 mb-4 mt-8">Publication Details</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <div class="form-group space-y-1">
+            <label for="isbn" class="dashboard-label">ISBN Number <span class="text-red-500">*</span></label>
+            <input type="text" id="isbn" formControlName="isbn" 
+                   class="dashboard-input font-mono text-sm"
+                   [ngClass]="{'border-red-300 focus:ring-red-500': bookForm.get('isbn')?.invalid && bookForm.get('isbn')?.touched}"
+                   placeholder="978-3-16-148410-0">
+            @if (bookForm.get('isbn')?.invalid && bookForm.get('isbn')?.touched) {
+              <p class="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <lucide-icon name="info" class="w-3 h-3"></lucide-icon> ISBN must be between 10-20 chars.
+              </p>
+            }
+          </div>
+
+          <div class="form-group space-y-1">
+            <label for="publicationDate" class="dashboard-label">Publication Date <span class="text-red-500">*</span></label>
+            <input type="date" id="publicationDate" formControlName="publicationDate" 
+                   class="dashboard-input text-gray-600"
+                   [ngClass]="{'border-red-300 focus:ring-red-500': bookForm.get('publicationDate')?.invalid && bookForm.get('publicationDate')?.touched}">
+            @if (bookForm.get('publicationDate')?.invalid && bookForm.get('publicationDate')?.touched) {
+              <p class="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <lucide-icon name="info" class="w-3 h-3"></lucide-icon> Publication Date is required.
+              </p>
+            }
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="pt-6 border-t border-[var(--border)] flex items-center justify-end gap-3 mt-8">
+        <button type="button" routerLink="/books" class="dashboard-btn-secondary">
+          Cancel
+        </button>
+        <button type="submit" class="dashboard-btn-primary min-w-[140px]" [disabled]="bookForm.invalid || isSubmitting">
+          @if (isSubmitting) {
+            <lucide-icon name="loader-2" class="w-4 h-4 animate-spin"></lucide-icon>
+            Saving...
+          } @else {
+            <lucide-icon name="save" class="w-4 h-4"></lucide-icon>
+            {{ isEditMode ? 'Update Record' : 'Save Record' }}
+          }
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>

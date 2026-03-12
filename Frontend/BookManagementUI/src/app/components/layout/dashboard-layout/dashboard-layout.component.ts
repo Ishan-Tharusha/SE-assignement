@@ -1,0 +1,67 @@
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { NavbarComponent } from '../navbar/navbar.component';
+import { SidebarComponent } from '../sidebar/sidebar.component';
+
+@Component({
+  selector: 'app-dashboard-layout',
+  standalone: true,
+  imports: [CommonModule, RouterModule, NavbarComponent, SidebarComponent],
+  template: `
+    <div class="layout-shell">
+      <app-navbar></app-navbar>
+
+      <div class="layout-body">
+        <app-sidebar class="layout-sidebar"></app-sidebar>
+
+        <main class="layout-main">
+          <div class="page-container">
+            <router-outlet></router-outlet>
+          </div>
+        </main>
+      </div>
+    </div>
+  `,
+  styles: [`
+    :host { display: block; min-height: 100vh; }
+
+    .layout-shell {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: #F5F7FB;
+    }
+
+    .layout-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 64px);
+    }
+
+    .layout-sidebar {
+      flex-shrink: 0;
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    .layout-main {
+      flex: 1;
+      overflow-y: auto;
+      background: #F5F7FB;
+    }
+
+    .page-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 28px;
+    }
+
+    @media (max-width: 768px) {
+      .layout-sidebar { display: none; }
+      .page-container { padding: 16px; }
+    }
+  `]
+})
+export class DashboardLayoutComponent {}

@@ -1,0 +1,27 @@
+# ASP.NET Core
+bin/
+obj/
+DEBUG/
+RELEASE/
+
+# User-specific files
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio files
+.vs/
+.vscode/
+
+# Database files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Build system
+publish/
+dist/
+
+# Logs
+*.log
