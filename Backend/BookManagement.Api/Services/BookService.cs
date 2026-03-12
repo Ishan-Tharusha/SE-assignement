@@ -46,6 +46,11 @@ namespace BookManagement.Api.Services
 
         public async Task<BookDto> CreateBookAsync(CreateBookDto createBookDto)
         {
+            if (await _repository.ExistsByIsbnAsync(createBookDto.Isbn))
+            {
+                throw new InvalidOperationException($"A book with ISBN {createBookDto.Isbn} already exists.");
+            }
+
             var newBook = new Book
             {
                 Title = createBookDto.Title,
@@ -74,6 +79,11 @@ namespace BookManagement.Api.Services
             if (existingBook == null)
             {
                 return false;
+            }
+
+            if (await _repository.ExistsByIsbnAsync(updateBookDto.Isbn, id))
+            {
+                throw new InvalidOperationException($"A book with ISBN {updateBookDto.Isbn} already exists.");
             }
 
             existingBook.Title = updateBookDto.Title;

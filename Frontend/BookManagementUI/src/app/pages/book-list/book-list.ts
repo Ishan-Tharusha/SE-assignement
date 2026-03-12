@@ -1,14 +1,17 @@
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { BookService } from '../../services/book.service';
+import { ToastService } from '../../services/toast.service';
 import { Book } from '../../models/book.model';
 import { LucideAngularModule } from 'lucide-angular';
+import { ModalComponent } from '../../components/shared/modal/modal.component';
 
 @Component({
   selector: 'app-book-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, RouterModule, LucideAngularModule, ModalComponent, FormsModule],
   template: `
     <div class="page-wrapper">
 
@@ -24,24 +27,30 @@ import { LucideAngularModule } from 'lucide-angular';
         </button>
       </div>
 
-      <!-- Error Alert -->
-      @if (errorMessage) {
-        <div class="alert-error">
-          <lucide-icon name="alert-circle" style="width:18px;height:18px;flex-shrink:0;"></lucide-icon>
-          <span>{{ errorMessage }}</span>
-        </div>
-      }
+
 
       <!-- Table Card -->
       <div class="table-card">
 
-        <!-- Toolbar -->
+      <!-- Toolbar -->
         <div class="toolbar">
-          <div class="search-wrapper">
-            <span class="search-icon-wrap"><lucide-icon name="search" style="width:15px;height:15px;display:block;"></lucide-icon></span>
-            <input type="text" placeholder="Search by title, author or ISBN..."
-                   class="search-input" (input)="onSearch($event)" />
+          <div class="toolbar-left">
+            <div class="search-wrapper">
+              <span class="search-icon-wrap"><lucide-icon name="search" style="width:15px;height:15px;display:block;"></lucide-icon></span>
+              <input type="text" placeholder="Search by title, author or ISBN..."
+                     class="search-input" [(ngModel)]="searchTerm" (input)="applyFilters()" />
+            </div>
+            
+            <div class="filter-wrapper">
+              <select class="filter-select" [(ngModel)]="selectedCategory" (change)="applyFilters()">
+                <option value="">All Categories</option>
+                @for (cat of categories; track cat) {
+                  <option [value]="cat">{{ cat }}</option>
+                }
+              </select>
+            </div>
           </div>
+
           <div class="toolbar-right">
             <span class="record-count">Showing {{ filteredBooks.length }} records</span>
           </div>
@@ -56,7 +65,7 @@ import { LucideAngularModule } from 'lucide-angular';
         }
 
         <!-- Table -->
-        @if (!isLoading && filteredBooks.length > 0) {
+        @if (!isLoading && pagedBooks.length > 0) {
           <div class="table-outer">
             <table class="books-table">
               <thead>
@@ -70,7 +79,7 @@ import { LucideAngularModule } from 'lucide-angular';
                 </tr>
               </thead>
               <tbody>
-                @for (book of filteredBooks; track book.id) {
+                @for (book of pagedBooks; track book.id) {
                   <tr class="table-row">
                     <td class="td-title">
                       <span class="book-title">{{ book.title }}</span>
@@ -88,23 +97,14 @@ import { LucideAngularModule } from 'lucide-angular';
                     </td>
 
                     <td class="td-actions">
-                      @if (pendingDeleteId === book.id) {
-                        <!-- Inline Confirm State -->
-                        <div class="confirm-row">
-                          <span class="confirm-text">Delete this record?</span>
-                          <button (click)="confirmDelete(book.id)" class="action-btn action-confirm-yes">Yes</button>
-                          <button (click)="cancelDelete()" class="action-btn action-confirm-no">No</button>
-                        </div>
-                      } @else {
-                        <div class="action-buttons">
-                          <a [routerLink]="['/books/edit', book.id]" class="action-btn action-edit" title="Edit">
-                            <lucide-icon name="pencil" style="width:15px;height:15px;"></lucide-icon>
-                          </a>
-                          <button (click)="requestDelete(book.id)" class="action-btn action-delete" title="Delete">
-                            <lucide-icon name="trash-2" style="width:15px;height:15px;"></lucide-icon>
-                          </button>
-                        </div>
-                      }
+                      <div class="action-buttons">
+                        <a [routerLink]="['/books/edit', book.id]" class="action-btn action-edit" title="Edit">
+                          <lucide-icon name="pencil" style="width:15px;height:15px;"></lucide-icon>
+                        </a>
+                        <button (click)="requestDelete(book.id)" class="action-btn action-delete" title="Delete">
+                          <lucide-icon name="trash-2" style="width:15px;height:15px;"></lucide-icon>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 }
@@ -114,16 +114,27 @@ import { LucideAngularModule } from 'lucide-angular';
 
           <!-- Pagination -->
           <div class="pagination-bar">
-            <span>Page 1 of 1</span>
+            <div class="pagination-info">
+              <span class="page-text">Page {{ currentPage }} of {{ totalPages }}</span>
+              <div class="size-selector">
+                <span class="size-label">Show</span>
+                <select class="size-select" [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+                  @for (size of pageSizes; track size) {
+                    <option [value]="size">{{ size }}</option>
+                  }
+                </select>
+                <span class="size-label">per page</span>
+              </div>
+            </div>
             <div class="pagination-btns">
-              <button class="page-btn" disabled>Previous</button>
-              <button class="page-btn">Next</button>
+              <button class="page-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">Previous</button>
+              <button class="page-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">Next</button>
             </div>
           </div>
         }
 
         <!-- Empty State -->
-        @if (!isLoading && filteredBooks.length === 0 && !errorMessage) {
+        @if (!isLoading && pagedBooks.length === 0 && !errorMessage) {
           <div class="empty-state">
             <div class="empty-icon-wrap">
               <lucide-icon name="database" style="width:32px;height:32px;color:#9CA3AF;"></lucide-icon>
@@ -141,6 +152,47 @@ import { LucideAngularModule } from 'lucide-angular';
 
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <app-modal
+      [isOpen]="!!pendingDeleteId"
+      title="Delete Record"
+      confirmText="Delete"
+      confirmClass="btn-danger"
+      [isLoading]="isDeleting"
+      (close)="cancelDelete()"
+      (confirm)="confirmDelete()">
+      <div class="modal-delete-content">
+        <div class="warning-sign warning-sign-red">
+          <lucide-icon name="alert-circle" style="width:32px;height:32px;color:#EF4444;"></lucide-icon>
+        </div>
+        
+        <div class="confirm-message">
+          <p>This action <strong>cannot</strong> be undone.</p>
+          <p class="confirm-prompt">
+            Please type <strong>{{ getPendingBookTitle() }}</strong> to confirm.
+          </p>
+        </div>
+
+        <div class="input-wrapper">
+          <input 
+            type="text" 
+            [(ngModel)]="confirmationValue" 
+            placeholder="Type book title here..."
+            class="confirm-input"
+            [class.input-error]="showConfirmationError"
+            (keyup.enter)="confirmDelete()"
+            (input)="showConfirmationError = false"
+          />
+          @if (showConfirmationError) {
+            <p class="validation-warning">
+              <lucide-icon name="alert-circle" style="width:14px;height:14px;"></lucide-icon>
+              Please enter the correct book title to delete.
+            </p>
+          }
+        </div>
+      </div>
+    </app-modal>
   `,
   styles: [`
     :host { display: block; }
@@ -233,13 +285,19 @@ import { LucideAngularModule } from 'lucide-angular';
       flex-wrap: wrap;
     }
 
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
     .search-wrapper {
       display: flex;
       align-items: center;
       gap: 8px;
-      flex: 1;
       max-width: 320px;
-      min-width: 180px;
+      min-width: 200px;
       background: #fff;
       border: 1px solid #E5E7EB;
       border-radius: 8px;
@@ -271,6 +329,22 @@ import { LucideAngularModule } from 'lucide-angular';
       color: #374151;
       outline: none;
       min-width: 0;
+    }
+
+    .filter-wrapper {
+      min-width: 140px;
+    }
+
+    .filter-select {
+      width: 100%;
+      padding: 8.5px 12px;
+      font-size: 13px;
+      color: #374151;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      background: #fff;
+      outline: none;
+      cursor: pointer;
     }
 
     .toolbar-right {
@@ -380,32 +454,6 @@ import { LucideAngularModule } from 'lucide-angular';
       font-size: 14px;
     }
 
-    /* Status Badges */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 10px;
-      border-radius: 100px;
-      font-size: 12px;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    .badge-active  { background: #DCFCE7; color: #15803D; }
-    .badge-pending { background: #FEF3C7; color: #92400E; }
-    .badge-archived { background: #F3F4F6; color: #4B5563; }
-
-    .badge-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .badge-dot-active  { background: #22C55E; }
-    .badge-dot-pending { background: #F59E0B; }
-    .badge-dot-archived { background: #9CA3AF; }
-
     /* Actions */
     .td-actions { text-align: right; min-width: 100px; }
 
@@ -415,72 +463,6 @@ import { LucideAngularModule } from 'lucide-angular';
       justify-content: flex-end;
       gap: 6px;
     }
-
-    .confirm-row {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 6px;
-      animation: fadeIn 0.15s ease;
-    }
-
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-    .confirm-text {
-      font-size: 12px;
-      color: #EF4444;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    .action-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 30px;
-      height: 30px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      background: transparent;
-      text-decoration: none;
-      transition: background 0.15s;
-    }
-
-    .action-edit   { color: #2563EB; }
-    .action-edit:hover   { background: #EFF6FF; }
-    .action-delete { color: #EF4444; }
-    .action-delete:hover { background: #FEF2F2; }
-
-    .action-confirm-yes {
-      background: #EF4444;
-      color: #fff;
-      border-radius: 6px;
-      padding: 4px 10px;
-      font-size: 12px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      width: auto;
-      height: auto;
-      transition: background 0.15s;
-    }
-    .action-confirm-yes:hover { background: #DC2626; }
-
-    .action-confirm-no {
-      background: #F3F4F6;
-      color: #374151;
-      border-radius: 6px;
-      padding: 4px 10px;
-      font-size: 12px;
-      font-weight: 500;
-      border: none;
-      cursor: pointer;
-      width: auto;
-      height: auto;
-      transition: background 0.15s;
-    }
-    .action-confirm-no:hover { background: #E5E7EB; }
 
     /* Pagination */
     .pagination-bar {
@@ -492,6 +474,31 @@ import { LucideAngularModule } from 'lucide-angular';
       background: #FAFAFA;
       font-size: 13px;
       color: #6B7280;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .pagination-info {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .size-selector {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .size-select {
+        padding: 4px 8px;
+        border: 1px solid #D1D5DB;
+        border-radius: 6px;
+        font-size: 12px;
+        background: #fff;
+        outline: none;
+        cursor: pointer;
     }
 
     .pagination-btns { display: flex; gap: 6px; }
@@ -509,51 +516,106 @@ import { LucideAngularModule } from 'lucide-angular';
     .page-btn:hover { background: #F3F4F6; }
     .page-btn:disabled { color: #9CA3AF; cursor: not-allowed; background: #F9FAFB; }
 
-    /* Empty State */
-    .empty-state {
+    .modal-delete-content {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 64px 24px;
       text-align: center;
+      gap: 20px;
     }
 
-    .empty-icon-wrap {
+    .warning-sign-red {
       width: 64px;
       height: 64px;
+      background: #FEF2F2;
       border-radius: 50%;
-      background: #F9FAFB;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 16px;
+      border: 4px solid #FEE2E2;
+      color: #EF4444;
     }
 
-    .empty-title {
-      margin: 0 0 8px;
-      font-size: 17px;
-      font-weight: 600;
-      color: #111827;
-    }
+    .confirm-message p { margin: 4px 0; }
+    .confirm-prompt { font-size: 13px; color: #6B7280; }
 
-    .empty-desc {
-      margin: 0;
+    .input-wrapper { width: 100%; text-align: left; }
+
+    .confirm-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
       font-size: 14px;
-      color: #6B7280;
-      max-width: 340px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-sizing: border-box;
     }
+
+    .confirm-input:focus {
+      border-color: #EF4444;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
+    .input-error {
+      border-color: #EF4444 !important;
+      background: #FFF5F5;
+    }
+
+    .validation-warning {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #DC2626;
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: 8px;
+      animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: transparent;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .action-edit   { color: #2563EB; }
+    .action-edit:hover   { background: #EFF6FF; }
+    .action-delete { color: #EF4444; }
+    .action-delete:hover { background: #FEF2F2; }
   `]
 })
 export class BookListComponent implements OnInit {
   books: Book[] = [];
   filteredBooks: Book[] = [];
+  pagedBooks: Book[] = [];
+  
+  // Filtering
   searchTerm = '';
+  selectedCategory = '';
+  categories: string[] = [];
+
+  // Pagination
+  pageSize = 5;
+  currentPage = 1;
+  pageSizes = [5, 10, 15, 25];
+
   isLoading = false;
+  isDeleting = false;
   errorMessage = '';
   pendingDeleteId: string | null = null;
+  confirmationValue = '';
+  showConfirmationError = false;
 
   bookService = inject(BookService);
+  toastService = inject(ToastService);
   cdr = inject(ChangeDetectorRef);
 
   ngOnInit(): void {
@@ -567,7 +629,8 @@ export class BookListComponent implements OnInit {
     this.bookService.getBooks().subscribe({
       next: (data) => {
         this.books = data;
-        this.filteredBooks = data;
+        this.extractCategories();
+        this.applyFilters();
         this.isLoading = false;
         this.cdr.detectChanges();
       },
@@ -579,36 +642,99 @@ export class BookListComponent implements OnInit {
     });
   }
 
-  onSearch(event: Event): void {
-    const term = (event.target as HTMLInputElement).value.toLowerCase().trim();
-    this.searchTerm = term;
+  extractCategories(): void {
+    const cats = new Set<string>();
+    this.books.forEach(b => {
+      if (b.category) cats.add(b.category);
+    });
+    this.categories = Array.from(cats).sort();
+  }
 
-    if (!term) {
-      this.filteredBooks = [...this.books];
-    } else {
-      this.filteredBooks = this.books.filter(b =>
+  applyFilters(): void {
+    let result = [...this.books];
+
+    // Search term
+    if (this.searchTerm) {
+      const term = this.searchTerm.toLowerCase().trim();
+      result = result.filter(b =>
         b.title.toLowerCase().includes(term) ||
         b.author.toLowerCase().includes(term) ||
         b.isbn.includes(term)
       );
     }
+
+    // Category filter
+    if (this.selectedCategory) {
+      result = result.filter(b => b.category === this.selectedCategory);
+    }
+
+    this.filteredBooks = result;
+    this.currentPage = 1; // Reset to first page when filtering
+    this.updatePagedBooks();
+  }
+
+  updatePagedBooks(): void {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = startIndex + Number(this.pageSize);
+    this.pagedBooks = this.filteredBooks.slice(startIndex, endIndex);
+    this.cdr.detectChanges();
+  }
+
+  get totalPages(): number {
+    return Math.ceil(this.filteredBooks.length / this.pageSize) || 1;
+  }
+
+  goToPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+      this.updatePagedBooks();
+    }
+  }
+
+  onPageSizeChange(): void {
+    this.currentPage = 1;
+    this.updatePagedBooks();
   }
 
   requestDelete(id: string): void {
     this.pendingDeleteId = id;
+    this.cdr.detectChanges();
   }
 
   cancelDelete(): void {
     this.pendingDeleteId = null;
+    this.confirmationValue = '';
+    this.showConfirmationError = false;
   }
 
-  confirmDelete(id: string): void {
-    this.pendingDeleteId = null;
+  getPendingBookTitle(): string {
+    return this.books.find(b => b.id === this.pendingDeleteId)?.title || '';
+  }
+
+  confirmDelete(): void {
+    if (!this.pendingDeleteId) return;
+    
+    // Validation check
+    if (this.confirmationValue !== this.getPendingBookTitle()) {
+      this.showConfirmationError = true;
+      return;
+    }
+    
+    const id = this.pendingDeleteId;
+    this.isDeleting = true;
+
     this.bookService.deleteBook(id).subscribe({
-      next: () => this.loadBooks(),
+      next: () => {
+        this.isDeleting = false;
+        this.pendingDeleteId = null;
+        this.toastService.success('Record deleted successfully');
+        this.loadBooks();
+      },
       error: (err) => {
         console.error('Error deleting book', err);
-        this.errorMessage = 'Failed to delete the record. It may have already been removed.';
+        this.isDeleting = false;
+        this.pendingDeleteId = null;
+        this.toastService.error('Failed to delete record');
       }
     });
   }

@@ -41,6 +41,7 @@ namespace BookManagement.Api.Repositories
         public Task AddAsync(Book book)
         {
             book.Id = Guid.NewGuid();
+            book.Isbn = NormalizeIsbn(book.Isbn);
             _books.Add(book);
             return Task.CompletedTask;
         }
@@ -50,6 +51,7 @@ namespace BookManagement.Api.Repositories
             var index = _books.FindIndex(b => b.Id == book.Id);
             if (index != -1)
             {
+                book.Isbn = NormalizeIsbn(book.Isbn);
                 _books[index] = book;
             }
             return Task.CompletedTask;
@@ -63,6 +65,19 @@ namespace BookManagement.Api.Repositories
                 _books.Remove(book);
             }
             return Task.CompletedTask;
+        }
+
+        public Task<bool> ExistsByIsbnAsync(string isbn, Guid? excludeId = null)
+        {
+            var normalizedSearch = NormalizeIsbn(isbn);
+            var exists = _books.Any(b => NormalizeIsbn(b.Isbn) == normalizedSearch && (!excludeId.HasValue || b.Id != excludeId.Value));
+            return Task.FromResult(exists);
+        }
+
+        private static string NormalizeIsbn(string isbn)
+        {
+            if (string.IsNullOrWhiteSpace(isbn)) return string.Empty;
+            return isbn.Replace("-", "").Replace(" ", "").ToUpperInvariant();
         }
     }
 }

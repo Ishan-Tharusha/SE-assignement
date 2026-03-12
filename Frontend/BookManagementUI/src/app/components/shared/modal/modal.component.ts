@@ -1,0 +1,191 @@
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { LucideAngularModule, X, AlertTriangle } from 'lucide-angular';
+
+@Component({
+  selector: 'app-modal',
+  standalone: true,
+  imports: [CommonModule, LucideAngularModule],
+  providers: [
+    { provide: 'lucide-icons', useValue: { X, AlertTriangle } }
+  ],
+  template: `
+    @if (isOpen) {
+      <div class="modal-overlay" (click)="onClose()">
+        <div class="modal-container" (click)="$event.stopPropagation()">
+          
+          <div class="modal-header">
+            <h3 class="modal-title">{{ title }}</h3>
+            <button class="close-btn" (click)="onClose()">
+              <lucide-icon name="x" style="width:18px;height:18px;"></lucide-icon>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <ng-content></ng-content>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" (click)="onClose()">{{ cancelText }}</button>
+            <button 
+              class="btn" 
+              [class]="confirmClass" 
+              (click)="onConfirm()"
+              [disabled]="isLoading || confirmDisabled">
+              @if (isLoading) {
+                <span class="spinner"></span>
+              }
+              {{ confirmText }}
+            </button>
+          </div>
+
+        </div>
+      </div>
+    }
+  `,
+  styles: [`
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fade-in 0.2s ease-out;
+    }
+
+    .modal-container {
+      background: #fff;
+      width: 100%;
+      max-width: 450px;
+      border-radius: 16px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+      animation: modal-slide 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes modal-slide {
+      from { transform: translateY(20px) scale(0.95); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #F3F4F6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: #EF4444;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .close-btn:hover { background: #FEF2F2; color: #DC2626; }
+
+    .modal-body {
+      padding: 24px;
+      font-size: 15px;
+      color: #4B5563;
+      line-height: 1.5;
+      overflow-y: auto;
+      max-height: 70vh;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #F3F4F6;
+      background: #F9FAFB;
+      border-bottom-left-radius: 16px;
+      border-bottom-right-radius: 16px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: transform 0.1s, opacity 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      color: #374151;
+    }
+    .btn-secondary:hover { background: #F9FAFB; }
+
+    .btn-primary { background: #2563EB; color: #fff; }
+    .btn-primary:hover { background: #1D4ED8; }
+
+    .btn-danger { background: #EF4444; color: #fff; }
+    .btn-danger:hover { background: #DC2626; }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  `]
+})
+export class ModalComponent {
+  @Input() isOpen = false;
+  @Input() title = 'Confirmation';
+  @Input() confirmText = 'Confirm';
+  @Input() cancelText = 'Cancel';
+  @Input() confirmClass = 'btn-primary';
+  @Input() isLoading = false;
+  @Input() confirmDisabled = false;
+
+  @Output() close = new EventEmitter<void>();
+  @Output() confirm = new EventEmitter<void>();
+
+  onClose() {
+    if (!this.isLoading) {
+      this.close.emit();
+    }
+  }
+
+  onConfirm() {
+    this.confirm.emit();
+  }
+}

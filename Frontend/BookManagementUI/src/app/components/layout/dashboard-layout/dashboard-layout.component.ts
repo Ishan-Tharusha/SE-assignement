@@ -3,14 +3,18 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
+import { ToastComponent } from '../../shared/toast/toast.component';
 
 @Component({
   selector: 'app-dashboard-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavbarComponent, SidebarComponent],
+  imports: [CommonModule, RouterModule, NavbarComponent, SidebarComponent, ToastComponent],
   template: `
     <div class="layout-shell">
       <app-navbar></app-navbar>
+
+      <!-- Global Toast Notifications -->
+      <app-toast></app-toast>
 
       <div class="layout-body">
         <app-sidebar class="layout-sidebar"></app-sidebar>

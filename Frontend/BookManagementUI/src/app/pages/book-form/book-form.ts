@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { BookService } from '../../services/book.service';
+import { ToastService } from '../../services/toast.service';
 import { Book } from '../../models/book.model';
 import { LucideAngularModule } from 'lucide-angular';
 
@@ -27,13 +28,7 @@ import { LucideAngularModule } from 'lucide-angular';
         </a>
       </div>
 
-      <!-- Error -->
-      @if (errorMessage) {
-        <div class="alert-error">
-          <span class="btn-icon"><lucide-icon name="alert-circle" style="width:18px;height:18px;display:block;"></lucide-icon></span>
-          <span>{{ errorMessage }}</span>
-        </div>
-      }
+
 
       <!-- Form Card -->
       <div class="form-card">
@@ -98,7 +93,11 @@ import { LucideAngularModule } from 'lucide-angular';
                 @if (bookForm.get('isbn')?.invalid && bookForm.get('isbn')?.touched) {
                   <p class="field-error">
                     <span class="btn-icon"><lucide-icon name="info" style="width:12px;height:12px;display:block;"></lucide-icon></span>
-                    ISBN must be between 10-20 characters.
+                    @if (bookForm.get('isbn')?.errors?.['required']) {
+                      ISBN is required.
+                    } @else if (bookForm.get('isbn')?.errors?.['pattern']) {
+                      Invalid ISBN format (ISBN-10 or ISBN-13 required).
+                    }
                   </p>
                 }
               </div>
@@ -387,15 +386,17 @@ export class BookFormComponent implements OnInit {
 
   private fb = inject(FormBuilder);
   private bookService = inject(BookService);
+  private toastService = inject(ToastService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private cdr = inject(ChangeDetectorRef);
 
   constructor() {
+    const isbnRegex = /^(?:ISBN(?:-10)?:?\s?)?(?:(?:\d-?){9}[\dX]|(?:\d-?){13})$/i;
     this.bookForm = this.fb.group({
       title: ['', [Validators.required, Validators.maxLength(200)]],
       author: ['', [Validators.required, Validators.maxLength(100)]],
-      isbn: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(20)]],
+      isbn: ['', [Validators.required, Validators.pattern(isbnRegex)]],
       publicationDate: ['', Validators.required],
       category: ['']
     });
@@ -444,11 +445,16 @@ export class BookFormComponent implements OnInit {
       this.bookService.updateBook(this.bookId, bookToUpdate).subscribe({
         next: () => {
           this.isSubmitting = false;
+          this.toastService.success('Record updated successfully');
           this.router.navigate(['/books']);
         },
         error: (err) => {
           console.error('Error updating book:', err);
-          this.errorMessage = 'Failed to update the record. Please try again.';
+          if (err.status === 409) {
+            this.toastService.error('ISBN already exists');
+          } else {
+            this.toastService.error('Failed to update record');
+          }
           this.isSubmitting = false;
         }
       });
@@ -456,11 +462,16 @@ export class BookFormComponent implements OnInit {
       this.bookService.addBook(formValue).subscribe({
         next: () => {
           this.isSubmitting = false;
+          this.toastService.success('New record added successfully');
           this.router.navigate(['/books']);
         },
         error: (err) => {
           console.error('Error adding book:', err);
-          this.errorMessage = 'Failed to save the record. Please try again.';
+          if (err.status === 409) {
+            this.toastService.error('ISBN already exists');
+          } else {
+            this.toastService.error('Failed to save record');
+          }
           this.isSubmitting = false;
         }
       });

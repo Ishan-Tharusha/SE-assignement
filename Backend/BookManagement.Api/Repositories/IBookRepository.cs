@@ -9,6 +9,7 @@ namespace BookManagement.Api.Repositories
         Task AddAsync(Book book);
         Task UpdateAsync(Book book);
         Task DeleteAsync(Guid id);
+        Task<bool> ExistsByIsbnAsync(string isbn, Guid? excludeId = null);
     }
 }
 

@@ -39,8 +39,15 @@ namespace BookManagement.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<BookDto>> Post([FromBody] CreateBookDto createBookDto)
         {
-            var createdBook = await _bookService.CreateBookAsync(createBookDto);
-            return CreatedAtAction(nameof(Get), new { id = createdBook.Id }, createdBook);
+            try
+            {
+                var createdBook = await _bookService.CreateBookAsync(createBookDto);
+                return CreatedAtAction(nameof(Get), new { id = createdBook.Id }, createdBook);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(ex.Message);
+            }
         }
 
         // PUT: api/books/{id}
@@ -52,13 +59,19 @@ namespace BookManagement.Api.Controllers
                 return BadRequest("ID mismatch in URL and body.");
             }
 
-            var updated = await _bookService.UpdateBookAsync(id, updateBookDto);
-            if (!updated)
+            try
             {
-                return NotFound($"Book with ID {id} not found.");
+                var updated = await _bookService.UpdateBookAsync(id, updateBookDto);
+                if (!updated)
+                {
+                    return NotFound($"Book with ID {id} not found.");
+                }
+                return NoContent();
             }
-
-            return NoContent();
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(ex.Message);
+            }
         }
 
         // DELETE: api/books/{id}
