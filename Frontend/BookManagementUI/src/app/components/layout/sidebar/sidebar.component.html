@@ -1,0 +1,35 @@
+<aside class="sidebar-shell" [class.sidebar-collapsed]="isCollapsed()">
+
+  <!-- Navigation Links -->
+  <nav class="sidebar-nav">
+    @for (item of navItems; track item.name) {
+      <a [routerLink]="item.route"
+         routerLinkActive="nav-item-active"
+         [routerLinkActiveOptions]="{exact: item.route === '/dashboard'}"
+         class="nav-item"
+         [title]="isCollapsed() ? item.name : ''">
+
+        <lucide-icon [name]="item.icon" class="nav-icon" style="width:18px;height:18px;flex-shrink:0;"></lucide-icon>
+
+        @if (!isCollapsed()) {
+          <span class="nav-label">{{ item.name }}</span>
+        }
+
+        @if (isCollapsed()) {
+          <div class="tooltip">{{ item.name }}</div>
+        }
+      </a>
+    }
+  </nav>
+
+  <!-- Collapse Toggle -->
+  <button class="collapse-btn" (click)="toggleSidebar()" title="Toggle sidebar">
+    @if (isCollapsed()) {
+      <lucide-icon name="chevron-right" style="width:14px;height:14px;"></lucide-icon>
+    } @else {
+      <lucide-icon name="chevron-left" style="width:14px;height:14px;"></lucide-icon>
+    }
+  </button>
+
+
+</aside>

@@ -1,0 +1,66 @@
+<div class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Dashboard Overview</h2>
+      <p class="text-[var(--text-secondary)] mt-1">Here's a summary of your library statistics.</p>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+
+    <div class="kpi-card" style="border-left:3px solid #2563EB;">
+      <div class="kpi-header">
+        <span class="kpi-label">Total Books</span>
+        <span class="kpi-icon kpi-icon-blue"><lucide-icon name="book" style="width:14px;height:14px;display:block;"></lucide-icon></span>
+      </div>
+      <div class="kpi-value">{{ totalBooks }}</div>
+      <p class="kpi-trend">Total entries in library</p>
+    </div>
+
+    <div class="kpi-card" style="border-left:3px solid #22C55E;">
+      <div class="kpi-header">
+        <span class="kpi-label">Unique Authors</span>
+        <span class="kpi-icon kpi-icon-green"><lucide-icon name="activity" style="width:14px;height:14px;display:block;"></lucide-icon></span>
+      </div>
+      <div class="kpi-value">{{ uniqueAuthors }}</div>
+      <p class="kpi-trend">Diverse contributors</p>
+    </div>
+
+    <div class="kpi-card" style="border-left:3px solid #0EA5E9;">
+      <div class="kpi-header">
+         <span class="kpi-label">Categories</span>
+        <span class="kpi-icon kpi-icon-sky"><lucide-icon name="book-open" style="width:14px;height:14px;display:block;"></lucide-icon></span>
+      </div>
+      <div class="kpi-value">{{ uniqueCategories }}</div>
+      <p class="kpi-trend">Active genres</p>
+    </div>
+
+    <div class="kpi-card" style="border-left:3px solid #F59E0B;">
+      <div class="kpi-header">
+        <span class="kpi-label">Latest Pub</span>
+        <span class="kpi-icon kpi-icon-amber"><lucide-icon name="clock" style="width:14px;height:14px;display:block;"></lucide-icon></span>
+      </div>
+      <div class="kpi-value">{{ latestPubYear }}</div>
+      <p class="kpi-trend">Newest release year</p>
+    </div>
+
+  </div>
+
+  <!-- Charts Area -->
+  <div class="max-w-4xl mx-auto w-full">
+    <div class="dashboard-card h-96 flex flex-col">
+      <h3 class="font-semibold text-[var(--text-primary)] mb-4">Genre Distribution</h3>
+      <div class="flex-1 relative flex items-center justify-center pb-4">
+         <canvas baseChart
+          [data]="pieChartData"
+          [options]="pieChartOptions"
+          [type]="'doughnut'">
+        </canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
